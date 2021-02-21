@@ -1,116 +1,134 @@
 const ctr = document.querySelector('#container');
 const startButton = document.querySelector('#start');
+const resetButton = document.querySelector('#reset');
 const scorebox = document.querySelector('#scorebox');
 const player1Element = document.querySelector('#player-1-name');
 const player2Element = document.querySelector('#player-2-name');
 
+let boardArray = ["", "", "", "", "", "", "", "", ""];
+let winCondition = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+
+let firstPlayer = {};
+let secondPlayer = {};
+let firstPlayerName = "";
+let secondPlayerName = "";
+let gameOverBool = false;
+
 startButton.addEventListener('click', () => {
     gameHandlerModule.runGame();
 });
-
-//current issues: checkWin not working, checkWinTest not working, can't get currentPlayer object into generateGrid event listener so the right marker goes into the grid.
+resetButton.addEventListener('click', () => {
+    gameHandlerModule.resetGame();
+});
 
 const gameboardModule = (function() {
-    let _boardArray = ["X", "", "", "X", "", "", "X", "", ""];
-
-    function _checkWin () {
-        //checking all 8 possible winning combinations in _boardArray
-        if (_boardArray[0] === _boardArray[3] === _boardArray[6]
-            || _boardArray[1] === _boardArray[4] === _boardArray[7]
-            || _boardArray[2] === _boardArray[5] === _boardArray[8]
-            || _boardArray[0] === _boardArray[1] === _boardArray[2]
-            || _boardArray[3] === _boardArray[4] === _boardArray[5]
-            || _boardArray[6] === _boardArray[7] === _boardArray[8]
-            || _boardArray[0] === _boardArray[4] === _boardArray[8]
-            || _boardArray[2] === _boardArray[4] === _boardArray[6]) {
-                return true
-            } else {
-                return false
-            }
-    }
-
+    let roundCounter = 0;
+    
     function checkWin () {
-        _checkWin();
+        let win = winCondition;
+        let board = boardArray;
+        let emptyElements = board.filter(element => element === "");
+        win.forEach(element => {
+            let checker = "";
+            for (let i = 0; i < 3; i++) {
+                checker += board[element[i]];
+            }
+            if (checker === "XXX") {
+                console.log("X wins!");
+                scorebox.style.fontSize = "20px";
+                scorebox.innerHTML = `Winner winner chicken dinner! <b>${firstPlayerName}</b> is the champion`;
+                resetButton.style.display = "initial";
+                gameOverBool = true;
+                return
+            } else if (checker === "OOO") {
+                console.log("O wins!");
+                scorebox.style.fontSize = "20px";
+                scorebox.innerHTML = `Winner winner chicken dinner! <b>${secondPlayerName}</b> is the champion`;
+                resetButton.style.display = "initial";
+                gameOverBool = true;
+                return
+            } else if (emptyElements.length === 0) {
+                console.log("It's a draw!")
+                scorebox.style.fontSize = "20px";
+                scorebox.innerHTML = "Nobody wins this time...";
+                resetButton.style.display = "initial";
+                gameOverBool = true;
+                return
+            }
+            return
+        })
     }
 
-    //test function
-    function checkWinTest () {
-        if (_boardArray[0] === _boardArray[3] === _boardArray[6]) {
-                return true
-            } else {
-                return false
-            }
-    }
+    //e.stopPropagation isn't working for some reason? Only bug left to stop overclicking boxes and stop the game after someone wins
 
     function generateGrid () {
-        for (let i = 0; i < _boardArray.length; i++) {
+        for (let i = 0; i < boardArray.length; i++) {
             const markerBox = document.createElement('div');
             markerBox.classList.add('gridbox');
-            markerBox.id = `${i}`;
-            scorebox.innerHTML = "Game started";
+            scorebox.innerHTML = `${firstPlayerName} up first!`;
             markerBox.addEventListener('click', (e) => {
-                if (_boardArray[i] != "") {
+                if (boardArray[i] != "") {
                     e.stopPropagation();
                 };
-                markerBox.innerHTML = "x";
-                const winbool = checkWin();
-                if (winbool === false) {
-                    gameHandlerModule.changePlayer();
-                } else if (winbool === true) {
-                    scorebox.innerHTML = "Winner winner chicken dinner!";
+                if (gameOverBool === true) {
+                    e.stopPropagation();
                 };
+                if (roundCounter % 2 === 0) {
+                    markerBox.innerHTML = "X";
+                    boardArray[i] = "X"
+                    roundCounter ++;
+                    scorebox.innerHTML = `${secondPlayerName} up next! (O marker)`;
+                } else if (roundCounter % 2 === 1) {
+                    markerBox.innerHTML = "O";
+                    boardArray[i] = "O"
+                    roundCounter ++;
+                    scorebox.innerHTML = `${firstPlayerName} up next! (X marker)`;
+                }
+                checkWin();
             });
             ctr.appendChild(markerBox);
-        //set container to grid, add a CSS class for each gridBox element, append to container, add i as id, add event listener, 
-        //event listener should add currentplayer.marker to array and check for win, change player if no win
         }
     }
 
     return {
-        generateGrid: generateGrid,
-        checkWin: checkWin,
-        checkWinTest: checkWinTest
+        generateGrid: generateGrid
     };
 
 })();
 
 const playerFactory = (name, marker) => {
-    const printMarker = () => marker;
-    return { name, marker, printMarker };
+    return { name, marker };
 };
 
 const gameHandlerModule = (function () {
-    let firstPlayer = {};
-    let secondPlayer = {};
-    let currentPlayer = {};
 
     function createPlayers () {
-        let firstPlayerName = player1Element.value;
-        let secondPlayerName = player2Element.value;
         firstPlayer = playerFactory(firstPlayerName, "X");
         secondPlayer = playerFactory(secondPlayerName, "O");
-        currentPlayer = firstPlayer;
-    }
-
-    function changePlayer () {
-        if (currentPlayer === firstPlayer) {
-            currentPlayer = secondPlayer;
-        } else if (currentPlayer === secondPlayer) {
-            currentPlayer = firstPlayer;
-        }
-    }    
+    } 
     
     function runGame () {
+        firstPlayerName = player1Element.value;
+        secondPlayerName = player2Element.value;
         createPlayers();
         gameboardModule.generateGrid();
+        startButton.style.display = "none";
+    }
+
+    function resetGame () {
+        ctr.innerHTML = "";
+        boardArray = ["", "", "", "", "", "", "", "", ""];
+        firstPlayer = {};
+        secondPlayer = {};
+        startButton.style.display = "initial";
+        resetButton.style.display = "none";
+        scorebox.innerHTML = "";
+        gameOverBool = false;
     }
 
     return {
         runGame: runGame,
-        changePlayer: changePlayer
+        resetGame: resetGame
     }
 
 })();
-
-let winTest = checkWinTest();
-console.log(winTest);
